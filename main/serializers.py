@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from .models import Category, Post
+from .models import Category, Post, Comment
 
 
 class CategorySerializer(serializers.ModelSerializer):
@@ -24,7 +24,16 @@ class PostCreateSerializer(serializers.ModelSerializer):
 
 class PostSerializer(serializers.ModelSerializer):
     owner = serializers.ReadOnlyField(source='owner.username')
+    category_name = serializers.ReadOnlyField(source='category.name')
 
     class Meta:
         model = Post
         fields = '__all__'
+
+
+class CommentSerializers(serializers.ModelSerializer):
+    owner = serializers.ReadOnlyField(source='owner.username')
+
+    class Meta:
+        model = Comment
+        fields = ('id', 'body', 'post', 'owner')
