@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from .models import Category, Post, Comment, PostImages
+from .models import Category, Post, Comment, PostImages, Like, Favorites
 
 
 class CategorySerializer(serializers.ModelSerializer):
@@ -14,6 +14,11 @@ class PostListSerializer(serializers.ModelSerializer):
     class Meta:
         model = Post
         fields = ('id', 'title', 'owner', 'preview')
+
+    def to_representation(self, instance):
+        repr = super().to_representation(instance)
+        repr['likes_count'] = instance.likes.count()
+        return repr
 
 
 class PostImageSerializer(serializers.ModelSerializer):
@@ -60,3 +65,20 @@ class PostSerializer(serializers.ModelSerializer):
         # exclude = ('category',)
 
 
+class LikeSerializer(serializers.ModelSerializer):
+    owner = serializers.ReadOnlyField(source='owner.username')
+
+    class Meta:
+        model = Like
+        fields = ('owner', 'post')
+
+
+class FavoriteSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Favorites
+        fields = ('post', )
+
+    def to_representation(self, instance):
+        repr = super().to_representation(instance)
+        repr['posts'] = PostListSerializer(instance.post).data
+        return repr

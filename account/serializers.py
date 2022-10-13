@@ -1,6 +1,8 @@
 from rest_framework import serializers
 from django.contrib.auth.models import User
 
+from main.serializers import FavoriteSerializer
+
 
 class UserListSerializer(serializers.ModelSerializer):
     class Meta:
@@ -11,7 +13,12 @@ class UserListSerializer(serializers.ModelSerializer):
 class UserDetailSerializer(serializers.ModelSerializer):
     class Meta:
         model = User
-        exclude = ('password',)
+        exclude = ('password', )
+
+    def to_representation(self, instance):
+        repr = super().to_representation(instance)
+        repr['favorites'] = FavoriteSerializer(instance.favorites.all(), many=True).data
+        return repr
 
 
 class RegisterSerializer(serializers.ModelSerializer):

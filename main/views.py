@@ -3,10 +3,19 @@ from rest_framework.response import Response
 from rest_framework.decorators import APIView
 from rest_framework import generics, permissions
 from rest_framework.viewsets import ModelViewSet
-
+from rest_framework.pagination import PageNumberPagination
+from rest_framework.filters import SearchFilter
+from rest_framework.decorators import action
+from django_filters.rest_framework import DjangoFilterBackend
 from . import serializers
-from main.models import Category, Post, Comment
+from main.models import Category, Post, Comment, Like, Favorites
 from .permissions import IsAuthor
+
+
+class StandartResultPagination(PageNumberPagination):
+    page_size = 3
+    page_query_param = 'page'
+    max_page_size = 1000
 
 
 class CategoryListView(generics.ListCreateAPIView):
@@ -16,6 +25,11 @@ class CategoryListView(generics.ListCreateAPIView):
 
 class PostViewSet(ModelViewSet):
     queryset = Post.objects.all()
+    pagination_class = StandartResultPagination
+    filter_backends = (SearchFilter,)
+    search_fields = ('title', )
+    filter_backends = (SearchFilter, DjangoFilterBackend)
+    filterset_fields = ('owner', 'category')
 
     def perform_create(self, serializer):
         serializer.save(owner=self.request.user)
@@ -33,12 +47,28 @@ class PostViewSet(ModelViewSet):
         if self.action in ('update', 'partial_update', 'destroy'):
             return [permissions.IsAuthenticated(), IsAuthor()]
         #создавать может только залогиненный юзер
-        elif self.action == 'create':
+        elif self.action in ('create', 'add_to_liked', 'remove_from_liked', 'favorite_action'):
             return [permissions.IsAuthenticated()]
         #просматривать могут все
         else:
             return [permissions.AllowAny()]
 
+    @action(['GET'], detail=True)
+    def comments(self, request, pk):
+        post = self.get_object()
+        comments = post.comments.all()
+        serializer = serializers.CommentSerializers(comments, many=True)
+        return Response(serializer.data, status=200)
+
+    # /posts/id/add_to_liked/
+    @action(['POST'], detail=True)
+    def add_to_liked(self, request, pk):
+        post = self.get_object()
+        user = request.user
+        if user.liked.filter(post=post).exists():
+            return Response('This post is already liked!', status=400)
+        Like.objects.create(owner=user, post=post)
+        return Response('You liked the post', status=201)
 
 # class PostListCreateView(generics.ListCreateAPIView):
 #     queryset = Post.objects.all()
@@ -67,6 +97,34 @@ class PostViewSet(ModelViewSet):
 #         return serializers.PostSerializer
 
 
+    # /posts/<id>/remove_from_liked/
+    @action(['DELETE'], detail=True)
+    def remove_from_liked(self, request, pk):
+        post = self.get_object()
+        user = request.user
+        if not user.liked.filter(post=post).exists():
+            return Response('You didn\'t liked this post!', status=400)
+        user.liked.filter(post=post).delete()
+        return Response('Your like is deleted!', status=204)
+
+    @action(['GET'], detail=True)
+    def get_likes(self, request, pk):
+        post = self.get_object()
+        likes = post.likes.all()
+        serializer = serializers.LikeSerializer(likes, many=True)
+        return Response(serializer.data, status=200)
+
+    @action(['POST'], detail=True)
+    def favorite_action(self, request, pk):
+        post = self.get_object()
+        user = request.user
+        if user.favorites.filter(post=post).exists():
+            user.favorites.filter(post=post).delete()
+            return Response('Deleted from Favorites', status=204)
+        Favorites.objects.create(owner=user, post=post)
+        return Response('Added to Favorites!', status=201)
+
+
 class CommentlistCreateView(generics.ListCreateAPIView):
     queryset = Comment.objects.all()
     serializer_class = serializers.CommentSerializers
@@ -86,8 +144,17 @@ class CommentDetailView(generics.RetrieveUpdateDestroyAPIView):
         return [permissions.IsAuthenticated(), IsAuthor()]
 
 
-
-
+# class LikeCreateView(generics.CreateAPIView):
+#     permission_classes = (permissions.IsAuthenticated,)
+#     serializer_class = serializers.LikeSerializer
+#
+#     def perform_create(self, serializer):
+#         serializer.save(owner=self.request.user)
+#
+#
+# class LikeDeleteView(generics.DestroyAPIView):
+#     queryset = Like.objects.all()
+#     permission_classes = (permissions.IsAuthenticated, IsAuthor)
 
 
 # function based view

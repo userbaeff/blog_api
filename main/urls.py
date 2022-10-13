@@ -13,6 +13,8 @@ urlpatterns = [
 
     path('comments/', views.CommentlistCreateView.as_view()),
     path('comments/<int:pk>/', views.CommentDetailView.as_view()),
+    # path('likes/', views.LikeCreateView.as_view()),
+    # path('likes/<int:pk>/', views.LikeDeleteView.as_view()),
     # path('categories/', views.category_list),
     # path('categories1/', views.CategoryListView.as_view()),
     # path('posts/', views.PostListCreateView.as_view()),
@@ -22,5 +24,4 @@ urlpatterns = [
 
 #TODO likes
 #TODO favorites
-#TODO pagination, search, filter
-#TODO documentation
+#TODO followers
